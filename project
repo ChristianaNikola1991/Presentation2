@@ -1,0 +1,227 @@
+---
+title: "PresentationShiny"
+author: "Christiana Reichsthaler"
+date: "3/12/2018"
+output:
+  pdf_document: default
+  html_document: default
+---
+```{r, include=FALSE}
+library(gapminder)
+library(tibble)
+library(stringr)
+library(lubridate)
+library(knitr)
+library(forcats)
+library(readxl)
+library(tidyverse)
+library(dplyr)
+library(devtools)
+if(!file.exists("./data")) {dir.create("./data")}
+```
+
+```{r, include=FALSE}
+# Import Data and cleaning up the Data
+TourismData <- "http://api.worldbank.org/v2/en/indicator/ST.INT.ARVL?downloadformat=excel"
+download.file(TourismData, destfile = "./data/tmp.xls", mode = "wb")
+TourismData <- read_excel("./data/tmp.xls")
+
+TourismData <- select(TourismData, "Data Source", "World Development Indicators", "X__38", "X__39", "X__40", "X__41", "X__42", "X__43", "X__44", "X__45", "X__46", "X__47", "X__48", "X__49", "X__50", "X__51", "X__52", "X__53", "X__54", "X__55", "X__56", "X__57", "X__58", "X__59", "X__60") 
+names(TourismData) <- c("country", "country_code", "year1995", "1996", "1997", "1998", "1999", "year2000", "2001", "2002", "2003", "2004", "year2005", "2006", "2007", "2008", "2009", "year2010", "year2011", "year2012", "2013", "2014", "2015", "year2016", "2017")
+TourismData = TourismData [-1:-4,]
+
+TourismData$year1995 <- as.numeric(TourismData$year1995)
+TourismData$year2000 <- as.numeric(TourismData$year2000)
+TourismData$year2005 <- as.numeric(TourismData$year2005)
+TourismData$year2010 <- as.numeric(TourismData$year2010)
+TourismData$year2011 <- as.numeric(TourismData$year2011)
+TourismData$year2012 <- as.numeric(TourismData$year2012)
+TourismData$year2016 <- as.numeric(TourismData$year2016)
+
+Regions <- TourismData %>%
+    select(country, year2000, year2016) %>%
+  filter (country %in% c("Arab World", "Central Europe and the Baltics", "Caribbean", "East Asia & Pacific", "Europe & Central Asia", "Euro area", "Latin America & Caribbean", "Middle East & North Africa" , "North America", "Pacific islands" , "Sub-Saharan Africa" , "East Asia & Pacific", "East Asia & Pacific", "Europe & Central Asia", "World")) 
+
+TourismData <- TourismData[-c(5, 34,36, 47, 59, 60, 61, 62, 63, 66, 72, 93, 96, 100, 101, 102, 103, 105, 108, 126, 132, 133, 134, 137, 138, 140, 151, 154, 159, 168, 179, 181, 189, 195, 196, 213, 215, 216, 228,229, 234, 236, 238, 239, 247),]
+
+write.csv(TourismData, file = "TourismData.csv",row.names=FALSE, na="")
+```
+
+```{r}
+#Project Plan
+#I downloaded data on international arrivals from 1995 to 2017 from a website 
+#called "Our World in Data". Originally, the data is from the World Bank. 
+#My plan for this project is to show how international tourism has 
+#increased or decreased in certain regions over the past years.
+#In my shiny app I plan to show graphs and hopefully maps of the data. 
+
+MostVisited <- TourismData %>% 
+select(country,year2016) %>%
+  arrange(desc(year2016)) %>%
+  slice(3:12)
+MostVisited
+
+slices <- c(84452000, 77465000, 68175000, 56886000, 50732000, 39478000, 34970000, 34436000, 33729000, 32093000)
+lbls <- c("France", "United States", "Spain", "China", "Italy ", "Turkey", "Germany", "United Kingdon", "Russian Federation", "Mexico")
+pct <- round(slices/sum(slices)*100)
+lbls <- paste(lbls, pct) # add percents to labels
+lbls <- paste(lbls,"%",sep="") # ad % to labels
+pie(slices,labels = lbls, col=rainbow(length(lbls)),
+   main=" 10 Most Visited Countries") 
+
+#The list of most visited countries in 2016 is not very suprising. 
+#Clearly the US and many European States are among the most favorites. 
+
+LeastVisited <- TourismData %>%
+select(country, year2016) %>%
+arrange(year2016) %>%
+   slice(1:10)
+LeastVisited
+  
+slices <- c(2400, 3900,  6300, 20300, 21600, 23600, 24000,  25600, 31200, 35000)
+lbls <- c("Tuvalu", "Kiribati", "Marshall Islands", "American Samoa ", "Solomon Islands", "Comoros ", "Sierra Leone", "Sao Tome and Principe", "Micronesia, Fed. Sts.", "Guinea")
+pct <- round(slices/sum(slices)*100)
+lbls <- paste(lbls, pct) # add percents to labels
+lbls <- paste(lbls,"%",sep="") # ad % to labels
+pie(slices,labels = lbls, col=rainbow(length(lbls)),
+   main="10 Least Visited Countries") 
+
+#The list of least visited countries is more suprising. There are either states in 
+#Africa or small island states in the Indian Ocean/Pacific. Its important to 
+#mention here that many countries with political issues like Syria or Somalia 
+#have no data about international tourist arrivals at all and therefore don't 
+#show up on the list.
+```
+
+```{r}
+HighestOverallIncrease <- TourismData %>%
+  select(country, year2000, year2016) %>%
+  mutate(Increase = year2016 - year2000) %>%
+  arrange(desc(Increase)) %>%
+  slice (3:12)
+HighestOverallIncrease
+
+slices <- c(32585000, 29839000, 28956000, 22735000, 21272000, 18849000, 17854000, 17790000, 15299000, 14909000)
+lbls <- c("Turkey", "China", "UnitedStates", "Spain", "Thailand", "HongKong", "Germany", "Malaysia", "Japan", "RussianFederation")
+pct <- round(slices/sum(slices)*100)
+lbls <- paste(lbls, pct) # add percents to labels
+lbls <- paste(lbls,"%",sep="") # ad % to labels
+pie (slices,labels = lbls, col=rainbow(length(lbls)),
+   main="Highest Increase in Visitors from 2000 to 2016")
+
+#Over the past 16 years, those are the countries that most gained in popularity. 
+
+HighestOverallDecrease <- TourismData %>%
+  select(country, year2000, year2016) %>%
+  mutate(Decrease = year2016 - year2000) %>%
+  arrange(Decrease) %>%
+  slice (1:10)
+HighestOverallDecrease
+  
+decrease <- c (-118000,  -88000, -62000, -60000, -23900, -1600, 900, 1400, 2000, 2800)
+country <- c ("Andorra", "Bermuda", "Bahamas", "French_Polynesia", "American_Samoa",   "Liechtenstein", "Kiribati", "Tuvalu", "Northern_Mariana_Islands", "Comoros")
+barplot(decrease, names.arg = country, main="Highest Decrease in Visitors from 2000 to 2016")
+
+#Those countries have lost popularity over the past 16 years. For example the 
+#2 island states in the Carrebean have lost a lot of tourist arrivals in the 
+#2008 financial crisis.
+
+Regions <- Regions %>%
+  mutate(Increase = year2016 - year2000) %>%
+  arrange(desc(Increase))
+Regions
+
+slices <- c(246936000	, 169991700, 110177000, 51372600, 48745400, 43782300, 28364000, 27381000, 19657100)
+lbls <- c("Europe & Central Asia", "East Asia & Pacific", "Euro area", "Middle East & North Africa", "Arab World", "Latin America & Caribbean", "Central Europe and the Baltics", "North America", "Sub-Saharan Africa")
+pct <- round(slices/sum(slices)*100)
+lbls <- paste(lbls, pct)
+lbls <- paste(lbls,"%",sep="") 
+pie (slices,labels = lbls, col=rainbow(length(lbls)),
+   main="Highest Increase in Visitors per region from 2000 to 2016")
+
+#Worldwide visitor numbers have increased by 576.704.000. Looking only at the regions, 
+#clearly Europe and East Asia ganied most visitors which is in line with the 
+#individual country analysis. Subsaharan Africa has the lowest Increase in visitors.
+```
+
+```{r, include=FALSE}
+library(ggmap)
+library(maptools)
+library(maps)
+
+visited <- c("USA", "Austria","Bahamas", "Costa Rica", "Jamaica", "Brazil", "Ireland", "UK", "France", "Spain", "Germany", "Belgium", "Netherlands", "Luxemburg", "Italy", "Switzerland", "Lichtenstein", "Denmark", "Sweden", "Czech Republic", "Croatia", "Hungary", "Slovenia", "Slovakia", "Boasnia and Herzegowina", "Montenegro", "Albania", "Bulgaria", "Greece", "Cyprus", "Turkey", "United Arab Emirates", "Lebanon", "Syria", "Isreal", "Palestine", "Sri Lanka", "Malaysia", "Indonesia", "Taiwan", "Singapore", "Thailand", "Mauritius", "Kenya", "Tanzania", "Australia", "New Zealand", "Fiji", "Malta", "Vatican City", " San Marino", "Monaco", "Canada", "Iceland", "Pakistan")
+ll.visited <- geocode(visited) 
+
+visit.x <- ll.visited$lon
+visit.y <- ll.visited$lat
+```
+
+```{r}
+map("world", fill=TRUE, col="white", bg="lightblue", ylim=c(-80, 100), mar=c(0,0,0,0))
+points(visit.x,visit.y, col="red", pch=16)
+
+mp <- NULL
+mapWorld <- borders("world", colour="gray50", fill="gray50") 
+mp <- ggplot() +   mapWorld
+mp <- mp+ geom_point(aes(x=visit.x, y=visit.y) ,color="blue", size=1) 
+mp
+```
+
+```{r}
+#Analysis
+#First, I downloaded the data from the website "Our World in Data/Tourism", the website got 
+#the original data from the World Bank. After importing and cleaning the data, 
+#I started out by looking at the most visited countries in 2016. 
+#France, the US and Spain are the 3 most popular destinations in the world.
+#In general, I was not very suprised by the results of the 10 most visted countries.
+
+#Next, I looked at the least visited countries, which results were a bit more 
+#suprising. According to this data, Tuvalu, Kiribati and the Marshall Islands 
+#are the least visited countries in 2016. All 3 are small island states 
+#which of course are far away located in the pacific and therefore it takes 
+#a long time to reach. Inititially, when I thought about which countries 
+#could be the least popular among visitors, I thought countries like 
+#Syria or Somalia, who are affected by war and violance, would be the 
+#least visited. The reason why this is not the case is the fact that the 
+#data does not show any numbers for those countries. 
+#For example, the data for Syria stops in 2011 right when the war started. 
+#Somalia, does not show any data for tourist arrivals at all.
+
+Syria <- TourismData %>%
+filter(country == "Syrian Arab Republic") %>%
+select(year1995, year2000, year2005, year2010, year2011, year2012, year2016)
+Syria
+
+Somalia <- TourismData %>%
+filter(country == "Somalia") %>%
+select(year1995, year2000, year2005, year2010, year2011, year2012, year2016)
+Somalia
+
+#Next, I wanted to find out which countries had the highest overall increase 
+#in visitor numbers from 2000 to 2016. Spain was always very popular and also 
+#increased its visitor numbers significantly over the past 16 years. Generally, 
+#among the top 10, most countries are in Asia.#
+
+#The countries which have the highest decrease are as suprsing as the ones 
+#with the lowest visitor numbers. Again countries like Somalia or Syria are 
+#excluded, but the country that lost most visitors is Andorra a tiny nation 
+#in Spain. The funny thing about this is that Spain is actually the country 
+#that had the highest increase. To be honest, most countries on the top 10 
+#I can not explain. I know island states like the Bahamas or Bermude suffered 
+#a lot after the financial crisis so this could be one reason.#
+
+#Overall, there are 567.643.000 more tourists in 2016 than there were in 2000. 
+#Europe and Asia have the highest increase which corresponds with the graph 
+#for Highest Overall Increase. Sub-Saharan Africa has the lowest increase
+#which does not suprise me.#
+
+#Finally, the masp show all the countries that I have visisted sor far. 
+#Altogether, I viisted 65 countries and every contenent.#
+
+#Sources
+#https://www.r-bloggers.com/r-beginners-plotting-locations-on-to-a-world-map/
+#https://www.statmethods.net/graphs/pie.html
+#http://api.worldbank.org/v2/en/indicator/ST.INT.ARVL?downloadformat=excel
+#https://ourworldindata.org/tourism
+```
+
